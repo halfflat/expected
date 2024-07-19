@@ -14,21 +14,18 @@ TEST(expected, ctors) {
     // Will also exercise expected<T, E>::has_value(), value(), error().
 
     using cc = counted<check_in_place>;
-    struct noctor {
-        noctor() = delete;
-        noctor(noctor&) = delete;
-    };
+    struct empty {};
 
     {
         // value construction
 
-        expected<void, noctor> e;
-        EXPECT_TRUE(e.has_value());
+        expected<void, empty> e1;
+        EXPECT_TRUE(e1.has_value());
 
         cc::reset();
-        expected<cc, noctor> e;
-        EXPECT_TRUE(e.has_value());
-        EXPECT_EQ(0, e.value().inner.n_in_place_args);
+        expected<cc, empty> e2;
+        EXPECT_TRUE(e2.has_value());
+        EXPECT_EQ(0, e2.value().inner.n_in_place_args);
 
         EXPECT_EQ(0, cc::n_copy_ctor);
         EXPECT_EQ(0, cc::n_move_ctor);
@@ -40,23 +37,23 @@ TEST(expected, ctors) {
         // in-place initialization of value
 
         cc::reset();
-        expected<cc, noctor> e0(in_place);
+        expected<cc, empty> e0(in_place);
         EXPECT_TRUE(e0.has_value());
         EXPECT_EQ(0, e0.value().inner.n_in_place_args);
 
-        expected<cc, noctor> e1(in_place, 10);
+        expected<cc, empty> e1(in_place, 10);
         EXPECT_TRUE(e1.has_value());
         EXPECT_EQ(1, e1.value().inner.n_in_place_args);
 
-        expected<cc, noctor> e2(in_place, 10, 20);
+        expected<cc, empty> e2(in_place, 10, 20);
         EXPECT_TRUE(e2.has_value());
         EXPECT_EQ(2, e2.value().inner.n_in_place_args);
 
-        expected<cc> e3(in_place, {3, 4, 5});
+        expected<cc, empty> e3(in_place, {3, 4, 5});
         EXPECT_EQ(1, e3.value().inner.n_in_place_args);
         EXPECT_TRUE(e3.has_value());
 
-        expected<cc> e4(in_place, {3, 4, 5}, 20, 30);
+        expected<cc, empty> e4(in_place, {3, 4, 5}, 20, 30);
         EXPECT_TRUE(e4.has_value());
         EXPECT_EQ(3, e4.value().inner.n_in_place_args);
 
