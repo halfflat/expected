@@ -5,7 +5,7 @@ top:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
 all:: unit
 
-test-src:=unit.cc
+test-src:=unit.cc test_expected.cc test_unexpected.cc
 
 all-src:=$(test-src)
 all-obj:=$(patsubst %.cc, %.o, $(all-src))

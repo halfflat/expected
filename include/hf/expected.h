@@ -62,8 +62,8 @@ struct unexpected {
     template <typename F>
     friend struct unexpected;
 
-    unexpected(const unexpected&) = default;
-    unexpected(unexpected&&) = default;
+    constexpr unexpected(const unexpected&) = default;
+    constexpr unexpected(unexpected&&) = default;
 
     // emplacing constructors
 
@@ -72,40 +72,40 @@ struct unexpected {
         typename = std::enable_if_t<!std::is_same_v<std::in_place_t, detail::remove_cvref_t<F>>>,
         typename = std::enable_if_t<!std::is_same_v<unexpected, detail::remove_cvref_t<F>>>
     >
-    explicit unexpected(F&& f):
+    constexpr explicit unexpected(F&& f):
         error_(std::forward<F>(f)) {}
 
     template <typename... As>
-    explicit unexpected(std::in_place_t, As&&... as):
+    constexpr explicit unexpected(std::in_place_t, As&&... as):
         error_(std::forward<As>(as)...) {}
 
     template <typename X, typename... As>
-    explicit unexpected(std::in_place_t, std::initializer_list<X> il, As&&... as):
+    constexpr explicit unexpected(std::in_place_t, std::initializer_list<X> il, As&&... as):
         error_(il, std::forward<As>(as)...) {}
 
     // access
 
-    E& error() & { return error_; }
-    const E& error() const& { return error_; }
-    E&& error() && { return std::move(error_); }
-    const E&& error() const&& { return std::move(error_); }
+    constexpr E& error() & { return error_; }
+    constexpr const E& error() const& { return error_; }
+    constexpr E&& error() && { return std::move(error_); }
+    constexpr const E&& error() const&& { return std::move(error_); }
 
     // comparison
 
     template <typename F>
-    friend bool operator==(const unexpected x, const hf::unexpected<F>& y) { return x.error()==y.error(); }
+    friend constexpr bool operator==(const unexpected x, const hf::unexpected<F>& y) { return x.error()==y.error(); }
 
     template <typename F>
-    friend bool operator!=(const unexpected x, const hf::unexpected<F>& y) { return x.error()!=y.error(); }
+    friend constexpr bool operator!=(const unexpected x, const hf::unexpected<F>& y) { return x.error()!=y.error(); }
 
     // swap
 
-    void swap(unexpected& other) noexcept(std::is_nothrow_swappable_v<E>) {
+    constexpr void swap(unexpected& other) noexcept(std::is_nothrow_swappable_v<E>) {
         using std::swap;
         swap(error_, other.error_);
     }
 
-    friend void swap(unexpected& a, unexpected& b) noexcept(noexcept(a.swap(b))) { a.swap(b); }
+    friend constexpr void swap(unexpected& a, unexpected& b) noexcept(noexcept(a.swap(b))) { a.swap(b); }
 
 private:
     E error_;
@@ -174,6 +174,9 @@ struct expected<T, E, false> {
     using error_type = E;
     using unexpected_type = unexpected<E>;
 
+    template <typename U>
+    using rebind = expected<U, error_type>;
+
     expected() noexcept(std::is_nothrow_default_constructible_v<data_type>) = default;
     expected(const expected&) = default;
     expected(expected&&) noexcept(std::is_nothrow_move_constructible_v<data_type>) = default;
@@ -191,12 +194,12 @@ struct expected<T, E, false> {
                 !detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
                 !detail::is_convertible_from_any_cref_v<expected<U, F>, T> &&
                 !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>),
-            bool
-        > = true,
+            int
+        > = 0,
         std::enable_if_t<
           std::is_convertible_v<Ucref, T> && std::is_convertible_v<Fcref, E>,
-          bool
-        > = true
+          int
+        > = 0
     >
     expected(const expected<U, F>& other):
         data_(other.data_) {}
@@ -214,11 +217,11 @@ struct expected<T, E, false> {
                 !detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
                 !detail::is_convertible_from_any_cref_v<expected<U, F>, T> &&
                 !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>),
-            bool
-        > = true,
+            int
+        > = 0,
         std::enable_if_t<
             !std::is_convertible_v<Ucref, T> || !std::is_convertible_v<Fcref, E>,
-            bool
+            int
         > = true
     >
     explicit expected(const expected<U, F>& other):
@@ -235,12 +238,12 @@ struct expected<T, E, false> {
                 !detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
                 !detail::is_convertible_from_any_cref_v<expected<U, F>, T> &&
                 !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>),
-            bool
-        > = true,
+            int
+        > = 0,
         std::enable_if_t<
             std::is_convertible_v<U, T> && std::is_convertible_v<F, E>,
-            bool
-        > = true
+            int
+        > = 0
     >
     expected(expected<U, F>&& other):
         data_(std::move(other.data_)) {}
@@ -256,12 +259,12 @@ struct expected<T, E, false> {
                 !detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
                 !detail::is_convertible_from_any_cref_v<expected<U, F>, T> &&
                 !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>),
-            bool
-        > = true,
+            int
+        > = 0,
         std::enable_if_t<
             !std::is_convertible_v<U, T> || !std::is_convertible_v<F, E>,
-            bool
-        > = true
+            int
+        > = 0
     >
     explicit expected(const expected<U, F>& other):
         data_(std::move(other.data_)) {}
@@ -275,9 +278,9 @@ struct expected<T, E, false> {
             !std::is_same_v<expected, detail::remove_cvref_t<U>> &&
             !detail::is_unexpected_v<detail::remove_cvref_t<U>> &&
             !(std::is_same_v<bool, detail::remove_cvref_t<T>> && detail::is_expected_v<detail::remove_cvref_t<U>>),
-            bool
-        > = true,
-        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true
+            int
+        > = 0,
+        std::enable_if_t<std::is_convertible_v<U, T>, int> = 0
     >
     expected(U&& value):
         data_(std::in_place_index<0>, std::forward<U>(value)) {}
@@ -291,9 +294,9 @@ struct expected<T, E, false> {
             !std::is_same_v<expected, detail::remove_cvref_t<U>> &&
             !detail::is_unexpected_v<detail::remove_cvref_t<U>> &&
             !(std::is_same_v<bool, detail::remove_cvref_t<T>> && detail::is_expected_v<detail::remove_cvref_t<U>>),
-            bool
-        > = true,
-        std::enable_if_t<!std::is_convertible_v<U, T>, bool> = true
+            int
+        > = 0,
+        std::enable_if_t<!std::is_convertible_v<U, T>, int> = 0
     >
     explicit expected(U&& value):
         data_(std::in_place_index<0>, std::forward<U>(value)) {}
@@ -301,8 +304,8 @@ struct expected<T, E, false> {
     // implicit copy construction from compatible unexpected type
     template <
         typename F,
-        std::enable_if_t<std::is_constructible_v<E, const F&>> = true,
-        std::enable_if_t<std::is_convertible_v<F, E>, bool> = true
+        std::enable_if_t<std::is_constructible_v<E, const F&>, int> = 0,
+        std::enable_if_t<std::is_convertible_v<F, E>, int> = 0
     >
     expected(const unexpected<F>& unexp):
         data_(std::in_place_index<1>, unexp) {}
@@ -310,8 +313,8 @@ struct expected<T, E, false> {
     // explicit copy construction from compatible unexpected type
     template <
         typename F,
-        std::enable_if_t<std::is_constructible_v<E, const F&>> = true,
-        std::enable_if_t<!std::is_convertible_v<F, E>, bool> = true
+        std::enable_if_t<std::is_constructible_v<E, const F&>, int> = 0,
+        std::enable_if_t<!std::is_convertible_v<F, E>, int> = 0
     >
     explicit expected(const unexpected<F>& unexp):
         data_(std::in_place_index<1>, unexp) {}
@@ -319,8 +322,8 @@ struct expected<T, E, false> {
     // implicit move construction from compatible unexpected type
     template <
         typename F,
-        std::enable_if_t<std::is_constructible_v<E, const F&>> = true,
-        std::enable_if_t<std::is_convertible_v<const F&, E>, bool> = true
+        std::enable_if_t<std::is_constructible_v<E, const F&>, int> = 0,
+        std::enable_if_t<std::is_convertible_v<const F&, E>, int> = 0
     >
     expected(unexpected<F>&& unexp):
         data_(std::in_place_index<1>, std::move(unexp)) {}
@@ -328,8 +331,8 @@ struct expected<T, E, false> {
     // explicit move construction from compatible unexpected type
     template <
         typename F,
-        std::enable_if_t<std::is_constructible_v<E, F>> = true,
-        std::enable_if_t<!std::is_convertible_v<F, E>, bool> = true
+        std::enable_if_t<std::is_constructible_v<E, F>, int> = 0,
+        std::enable_if_t<!std::is_convertible_v<F, E>, int> = 0
     >
     explicit expected(const unexpected<F>& unexp):
         data_(std::in_place_index<1>, unexp) {}
@@ -390,13 +393,27 @@ struct expected<T, E, false> {
     }
 
     template <typename U>
-    T value_or(U&& alt) const& {
-        return *this? **this: static_cast<T>(std::forward<U>(alt));
+    constexpr T value_or(U&& alt) const& {
+        if (has_value()) return **this;
+        return std::forward<U>(alt);
     }
 
     template <typename U>
-    T value_or(U&& alt) && {
-        return *this? std::move(**this): static_cast<T>(std::forward<U>(alt));
+    constexpr T value_or(U&& alt) && {
+        if (has_value()) return std::move(**this);
+        return std::forward<U>(alt);
+    }
+
+    template <typename U>
+    constexpr E error_or(U&& alt) const& {
+        if (has_value()) return std::forward<U>(alt);
+        return error();
+    }
+
+    template <typename U>
+    constexpr E error_or(U&& alt) && {
+        if (has_value()) return std::forward<U>(alt);
+        return std::move(error());
     }
 
     // monadic operations
@@ -451,26 +468,38 @@ struct expected<T, E, false> {
 
     template <typename F>
     auto transform(F&& f) & {
-        using R = expected<std::remove_cv_t<std::invoke_result_t<F, T&>>, E>;
-        return *this? R(std::in_place, std::invoke(std::forward<F>(f), **this)): R(unexpect, error());
+        using U = std::remove_cv_t<std::invoke_result_t<F, T&>;
+        if constexpr (std::is_void_v<U>)
+            return *this? std::invoke(std::forward<F>(f), **this), expected<U, E>(): expected<U, E>(unexpect, error());
+        else
+            return *this? expected<U, E>(std::in_place, std::invoke(std::forward<F>(f), **this)): expected<U, E>(unexpect, error());
     }
 
     template <typename F>
     auto transform(F&& f) const& {
-        using R = expected<std::remove_cv_t<std::invoke_result_t<F, const T&>>, E>;
-        return *this? R(std::in_place, std::invoke(std::forward<F>(f), **this)): R(unexpect, error());
+        using U = std::remove_cv_t<std::invoke_result_t<F, const T&>;
+        if constexpr (std::is_void_v<U>)
+            return *this? std::invoke(std::forward<F>(f), **this), expected<U, E>(): expected<U, E>(unexpect, error());
+        else
+            return *this? expected<U, E>(std::in_place, std::invoke(std::forward<F>(f), **this)): expected<U, E>(unexpect, error());
     }
 
     template <typename F>
     auto transform(F&& f) && {
-        using R = expected<std::remove_cv_t<std::invoke_result_t<F, T&&>>, E>;
-        return *this? R(std::in_place, std::invoke(std::forward<F>(f), std::move(**this))): R(unexpect, std::move(error()));
+        using U = std::remove_cv_t<std::invoke_result_t<F, T&&>;
+        if constexpr (std::is_void_v<U>)
+            return *this? std::invoke(std::forward<F>(f), std::move(**this)), expected<U, E>(): expected<U, E>(unexpect, std::move(error()));
+        else
+            return *this? expected<U, E>(std::in_place, std::invoke(std::forward<F>(f), std::move(**this))): expected<U, E>(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto transform(F&& f) const&& {
-        using R = expected<std::remove_cv_t<std::invoke_result_t<F, const T&&>>, E>;
-        return *this? R(std::in_place, std::invoke(std::forward<F>(f), std::move(**this))): R(unexpect, std::move(error()));
+        using U = std::remove_cv_t<std::invoke_result_t<F, const T&&>;
+        if constexpr (std::is_void_v<U>)
+            return *this? std::invoke(std::forward<F>(f), std::move(**this)), expected<U, E>(): expected<U, E>(unexpect, std::move(error()));
+        else
+            return *this? expected<U, E>(std::in_place, std::invoke(std::forward<F>(f), std::move(**this))): expected<U, E>(unexpect, std::move(error()));
     }
 
     template <typename F>
@@ -501,14 +530,14 @@ struct expected<T, E, false> {
 
     template <
         typename... As,
-        std::enable_if_t<std::is_nothrow_constructible_v<T, As...>, bool> = true
+        std::enable_if_t<std::is_nothrow_constructible_v<T, As...>, int> = 0
     >
     T& emplace(As&&... as) noexcept { return data_.template emplace<0>(std::forward<As>(as)...); }
 
     template <
         typename X,
         typename... As,
-        std::enable_if_t<std::is_nothrow_constructible_v<T, std::initializer_list<X>&, As...>, bool> = true
+        std::enable_if_t<std::is_nothrow_constructible_v<T, std::initializer_list<X>&, As...>, int> = 0
     >
     T& emplace(std::initializer_list<X> il, As&&... as) noexcept { return data_.template emplace<0>(il, std::forward<As>(as)...); }
 
@@ -535,6 +564,10 @@ struct expected<T, E, true> {
     using error_type = E;
     using unexpected_type = unexpected<E>;
 
+    template <typename U>
+    using rebind = expected<U, error_type>;
+
+
     expected() noexcept(std::is_nothrow_default_constructible_v<data_type>) = default;
     expected(const expected&) = default;
     expected(expected&&) noexcept(std::is_nothrow_move_constructible_v<data_type>) = default;
@@ -547,9 +580,9 @@ struct expected<T, E, true> {
             std::is_void_v<U> &&
             std::is_constructible_v<E, const F&> &&
             !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>,
-            bool
-        > = true,
-        std::enable_if_t<std::is_convertible_v<const F&, E>, bool> = true
+            int
+        > = 0,
+        std::enable_if_t<std::is_convertible_v<const F&, E>, int> = 0
     >
     expected(const expected<U, F>& other):
         data_(other.data_) {}
@@ -562,11 +595,11 @@ struct expected<T, E, true> {
             std::is_void_v<U> &&
             std::is_constructible_v<E, const F&> &&
             !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>,
-            bool
-        > = true,
-        std::enable_if_t<!std::is_convertible_v<const F&, E>, bool> = true
+            int
+        > = 0,
+        std::enable_if_t<!std::is_convertible_v<const F&, E>, int> = 0
     >
-    expected(const expected<U, F>& other):
+   explicit expected(const expected<U, F>& other):
         data_(other.data_) {}
 
 // wip ...
@@ -703,162 +736,147 @@ struct expected<T, E, true> {
     explicit expected(unexpect_t, std::initializer_list<X> il, As&&... as):
         data_(std::in_place_index<1>, std::in_place_t{}, il, std::forward<As>(as)...) {}
 
+#endif
     // access methods
 
-    explicit operator bool() const noexcept { return data_.index()==0; }
-    bool has_value() const noexcept { return data_.index()==0; }
+    constexpr explicit operator bool() const noexcept { return has_value(); }
+    constexpr bool has_value() const noexcept { return !data_.has_value(); }
 
-    E& error() & { return std::get<1>(data_).error(); }
-    const E& error() const& { return std::get<1>(data_).error(); }
-    E&& error() && { return std::get<1>(std::move(data_)).error(); }
-    const E&& error() const&& { return std::get<1>(std::move(data_)).error(); }
+    constexpr E& error() & { return *data_; }
+    constexpr const E& error() const& { return *data_; }
+    constexpr E&& error() && { return *std::move(data_); }
+    constexpr const E&& error() const&& { return *std::move(data_); }
 
-    T* operator->() noexcept { return std::get_if<0>(data_); }
-    const T* operator->() const noexcept { return std::get_if<0>(data_); }
+    constexpr void value() const& { if (!has_value()) throw bad_expected_access(std::as_const(error())); }
+    constexpr void value() && { if (!has_value()) throw bad_expected_access(std::move(error())); }
 
-    T& operator*() & noexcept { return std::get<0>(data_); }
-    const T& operator*() const& noexcept { return std::get<0>(data_); }
-    T&& operator*() && noexcept { return std::get<0>(std::move(data_)); }
-    const T&& operator*() const&& noexcept { return std::get<0>(std::move(data_)); }
+    constexpr void operator*() const noexcept {}
 
-    T& value() & {
-        return *this? std::get<0>(data_): throw bad_expected_access(std::as_const(error()));
-    }
-
-    const T& value() const& {
-        return *this? std::get<0>(data_): throw bad_expected_access(std::as_const(error()));
-    }
-
-    T&& value() && {
-        return *this? std::get<0>(std::move(data_)): throw bad_expected_access(std::as_const(error()));
-    }
-
-    const T&& value() const&& {
-        return *this? std::get<0>(std::move(data_)): throw bad_expected_access(std::as_const(error()));
+    template <typename U>
+    constexpr E error_or(U&& alt) const& {
+        if (has_value()) return std::forward<U>(alt);
+        return error();
     }
 
     template <typename U>
-    T value_or(U&& alt) const& {
-        return *this? **this: static_cast<T>(std::forward<U>(alt));
-    }
-
-    template <typename U>
-    T value_or(U&& alt) && {
-        return *this? std::move(**this): static_cast<T>(std::forward<U>(alt));
+    constexpr E error_or(U&& alt) && {
+        if (has_value()) return std::forward<U>(alt);
+        return std::move(error());
     }
 
     // monadic operations
 
     template <typename F>
     auto and_then(F&& f) & {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, T&>>;
-        return *this? std::invoke(std::forward<F>(f), **this): R(unexpect, error());
+        using R = detail::remove_cvref_t<std::invoke_result_t<F>>;
+        return *this? std::invoke(std::forward<F>(f)): R(unexpect, error());
     }
 
     template <typename F>
     auto and_then(F&& f) const& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, const T&>>;
-        return *this? std::invoke(std::forward<F>(f), **this): R(unexpect, error());
+        using R = detail::remove_cvref_t<std::invoke_result_t<F>>;
+        return *this? std::invoke(std::forward<F>(f)): R(unexpect, error());
     }
 
     template <typename F>
-    auto and_then(F&& f) const& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, T&&>>;
-        return *this? std::invoke(std::forward<F>(f), std::move(**this)): R(unexpect, std::move(error()));
+    auto and_then(F&& f) && {
+        using R = detail::remove_cvref_t<std::invoke_result_t<F>>;
+        return *this? std::invoke(std::forward<F>(f)): R(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto and_then(F&& f) const&& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, const T&&>>;
-        return *this? std::invoke(std::forward<F>(f), std::move(**this)): R(unexpect, std::move(error()));
+        using R = detail::remove_cvref_t<std::invoke_result_t<F>>;
+        return *this? std::invoke(std::forward<F>(f)): R(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto or_else(F&& f) & {
         using R = detail::remove_cvref_t<std::invoke_result_t<F, E&>>;
-        return *this? R(std::in_place, **this): std::invoke(std::forward<F>(f), error());
+        return *this? R(): std::invoke(std::forward<F>(f), error());
     }
 
     template <typename F>
     auto or_else(F&& f) const& {
         using R = detail::remove_cvref_t<std::invoke_result_t<F, const E&>>;
-        return *this? R(std::in_place, **this): std::invoke(std::forward<F>(f), error());
+        return *this? R(): std::invoke(std::forward<F>(f), error());
     }
 
     template <typename F>
     auto or_else(F&& f) && {
         using R = detail::remove_cvref_t<std::invoke_result_t<F, E&&>>;
-        return *this? R(std::in_place, std::move(**this)): std::invoke(std::forward<F>(f), std::move(error()));
+        return *this? R(): std::invoke(std::forward<F>(f), std::move(error()));
     }
 
     template <typename F>
     auto or_else(F&& f) const&& {
         using R = detail::remove_cvref_t<std::invoke_result_t<F, const E&&>>;
-        return *this? R(std::in_place, std::move(**this)): std::invoke(std::forward<F>(f), std::move(error()));
+        return *this? R(): std::invoke(std::forward<F>(f), std::move(error()));
     }
 
     template <typename F>
     auto transform(F&& f) & {
-        using R = expected<std::remove_cv_t<std::invoke_result_t<F, T&>>, E>;
-        return *this? R(std::in_place, std::invoke(std::forward<F>(f), **this)): R(unexpect, error());
+        using U = std::remove_cv_t<std::invoke_result_t<F>>;
+        if constexpr (std::is_void_v<U>)
+            return *this? std::invoke(std::forward<F>(f)), expected<U, E>(): expected<U, E>(unexpect, error());
+        else
+            return *this? expected<U, E>(std::in_place, std::invoke(std::forward<F>(f))): expected<U, E>(unexpect, error());
     }
 
     template <typename F>
     auto transform(F&& f) const& {
-        using R = expected<std::remove_cv_t<std::invoke_result_t<F, const T&>>, E>;
-        return *this? R(std::in_place, std::invoke(std::forward<F>(f), **this)): R(unexpect, error());
+        using U = std::remove_cv_t<std::invoke_result_t<F>>;
+        if constexpr (std::is_void_v<U>)
+            return *this? std::invoke(std::forward<F>(f)), expected<U, E>(): expected<U, E>(unexpect, error());
+        else
+            return *this? expected<U, E>(std::in_place, std::invoke(std::forward<F>(f))): expected<U, E>(unexpect, error());
     }
 
     template <typename F>
     auto transform(F&& f) && {
-        using R = expected<std::remove_cv_t<std::invoke_result_t<F, T&&>>, E>;
-        return *this? R(std::in_place, std::invoke(std::forward<F>(f), std::move(**this))): R(unexpect, std::move(error()));
+        using U = std::remove_cv_t<std::invoke_result_t<F>>;
+        if constexpr (std::is_void_v<U>)
+            return *this? std::invoke(std::forward<F>(f)), expected<U, E>(): expected<U, E>(unexpect, std::move(error()));
+        else
+            return *this? expected<U, E>(std::in_place, std::invoke(std::forward<F>(f))): expected<U, E>(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto transform(F&& f) const&& {
-        using R = expected<std::remove_cv_t<std::invoke_result_t<F, const T&&>>, E>;
-        return *this? R(std::in_place, std::invoke(std::forward<F>(f), std::move(**this))): R(unexpect, std::move(error()));
+        using U = std::remove_cv_t<std::invoke_result_t<F>>;
+        if constexpr (std::is_void_v<U>)
+            return *this? std::invoke(std::forward<F>(f)), expected<U, E>(): expected<U, E>(unexpect, std::move(error()));
+        else
+            return *this? expected<U, E>(std::in_place, std::invoke(std::forward<F>(f))): expected<U, E>(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto transform_error(F&& f) & {
         using R = expected<T, std::remove_cv_t<std::invoke_result_t<F, E&>>;
-        return *this? R(std::in_place, **this): R(unexpect, std::invoke(std::forward<F>(f), error()));
+        return *this? R(): R(unexpect, std::invoke(std::forward<F>(f), error()));
     }
 
     template <typename F>
     auto transform_error(F&& f) const& {
         using R = expected<T, std::remove_cv_t<std::invoke_result_t<F, const E&>>;
-        return *this? R(std::in_place, **this): R(unexpect, std::invoke(std::forward<F>(f), error()));
+        return *this? R(): R(unexpect, std::invoke(std::forward<F>(f), error()));
     }
 
     template <typename F>
     auto transform_error(F&& f) && {
         using R = expected<T, std::remove_cv_t<std::invoke_result_t<F, E&&>>;
-        return *this? R(std::in_place, std::move(**this)): R(unexpect, std::invoke(std::forward<F>(f), std::move(error())));
+        return *this? R(): R(unexpect, std::invoke(std::forward<F>(f), std::move(error())));
     }
 
     template <typename F>
     auto transform_error(F&& f) const&& {
         using R = expected<T, std::remove_cv_t<std::invoke_result_t<F, const E&&>>;
-        return *this? R(std::in_place, std::move(**this)): R(unexpect, std::invoke(std::forward<F>(f), std::move(error())));
+        return *this? R(): R(unexpect, std::invoke(std::forward<F>(f), std::move(error())));
     }
 
     // emplace expected value
 
-    template <
-        typename... As,
-        std::enable_if_t<std::is_nothrow_constructible_v<T, As...>, bool> = true
-    >
-    T& emplace(As&&... as) noexcept { return data_.emplace<0>(std::forward<As>(as)...); }
-
-    template <
-        typename X,
-        typename... As,
-        std::enable_if_t<std::is_nothrow_constructible_v<T, std::initializer_list<X>&, As...>, bool> = true
-    >
-    T& emplace(std::initializer_list<X> il, As&&... as) noexcept { return data_.emplace<0>(il, std::forward<As>(as)...); }
+    constexpr void emplace() noexcept { data_.reset(); }
 
     // swap
 
