@@ -63,6 +63,223 @@ TEST(expected, ctors) {
         EXPECT_EQ(0, cc::n_move_assign);
     }
 
+    {
+        // in-place initialization of error, tests both void
+        // and non-void value types.
+
+        cc::reset();
+        expected<empty, cc> e0(unexpect);
+        EXPECT_FALSE(e0.has_value());
+        EXPECT_EQ(0, e0.error().inner.n_in_place_args);
+
+        expected<empty, cc> e1(unexpect, 10);
+        EXPECT_FALSE(e1.has_value());
+        EXPECT_EQ(1, e1.error().inner.n_in_place_args);
+
+        expected<empty, cc> e2(unexpect, 10, 20);
+        EXPECT_FALSE(e2.has_value());
+        EXPECT_EQ(2, e2.error().inner.n_in_place_args);
+
+        expected<empty, cc> e3(unexpect, {3, 4, 5});
+        EXPECT_FALSE(e3.has_value());
+        EXPECT_EQ(1, e3.error().inner.n_in_place_args);
+
+        expected<empty, cc> e4(unexpect, {3, 4, 5}, 20, 30);
+        EXPECT_FALSE(e4.has_value());
+        EXPECT_EQ(3, e4.error().inner.n_in_place_args);
+
+        expected<void, cc> v0(unexpect);
+        EXPECT_FALSE(v0.has_value());
+        EXPECT_EQ(0, v0.error().inner.n_in_place_args);
+
+        expected<void, cc> v1(unexpect, 10);
+        EXPECT_FALSE(v1.has_value());
+        EXPECT_EQ(1, v1.error().inner.n_in_place_args);
+
+        expected<void, cc> v2(unexpect, 10, 20);
+        EXPECT_FALSE(v2.has_value());
+        EXPECT_EQ(2, v2.error().inner.n_in_place_args);
+
+        expected<void, cc> v3(unexpect, {3, 4, 5});
+        EXPECT_FALSE(v3.has_value());
+        EXPECT_EQ(1, v3.error().inner.n_in_place_args);
+
+        expected<void, cc> v4(unexpect, {3, 4, 5}, 20, 30);
+        EXPECT_FALSE(v4.has_value());
+        EXPECT_EQ(3, v4.error().inner.n_in_place_args);
+
+        EXPECT_EQ(0, cc::n_copy_ctor);
+        EXPECT_EQ(0, cc::n_move_ctor);
+        EXPECT_EQ(0, cc::n_copy_assign);
+        EXPECT_EQ(0, cc::n_move_assign);
+    }
+
+    {
+        // copy and move constructors
+
+        struct X {};
+        struct Y {};
+
+        using cx = counted<X>;
+        using cy = counted<Y>;
+
+        cx::reset();
+        cy::reset();
+
+        expected<cx, cy> v;
+        const expected<cx, cy> cv;
+
+        expected<cx, cy> u(unexpect);
+        const expected<cx, cy> cu(unexpect);
+
+        expected<cx, cy> e1(v);
+        EXPECT_TRUE(e1.has_value());
+        EXPECT_EQ(1, cx::n_copy_ctor);
+
+        expected<cx, cy> e2(cv);
+        EXPECT_TRUE(e2.has_value());
+        EXPECT_EQ(2, cx::n_copy_ctor);
+
+        expected<cx, cy> e3(std::move(v));
+        EXPECT_TRUE(e3.has_value());
+        EXPECT_EQ(1, cx::n_move_ctor);
+
+        expected<cx, cy> u1(u);
+        EXPECT_TRUE(!u1.has_value());
+        EXPECT_EQ(1, cy::n_copy_ctor);
+
+        expected<cx, cy> u2(cu);
+        EXPECT_TRUE(!u2.has_value());
+        EXPECT_EQ(2, cy::n_copy_ctor);
+
+        expected<cx, cy> u3(std::move(u));
+        EXPECT_TRUE(!u3.has_value());
+        EXPECT_EQ(1, cy::n_move_ctor);
+
+        EXPECT_EQ(2, cx::n_copy_ctor);
+        EXPECT_EQ(1, cx::n_move_ctor);
+        EXPECT_EQ(0, cx::n_copy_assign);
+        EXPECT_EQ(0, cx::n_move_assign);
+
+        EXPECT_EQ(2, cy::n_copy_ctor);
+        EXPECT_EQ(1, cy::n_move_ctor);
+        EXPECT_EQ(0, cy::n_copy_assign);
+        EXPECT_EQ(0, cy::n_move_assign);
+    }
+
+    {
+        // construct from types that can construct value type
+        // or error type
+
+        struct X {};
+        struct Y {};
+
+        using cx = counted<X>;
+        using cy = counted<Y>;
+
+        struct Z {
+            cx x_;
+            cy y_;
+
+            Z() = default;
+
+            // implicit construction from cx with copy or move
+            Z(const cx& x): x_(x) {}
+            Z(cx&& x): x_(std::move(x)) {}
+
+            // explicit construction from cy with copy or move
+            explicit Z(const cy& y): y_(y) {}
+            explicit Z(cy&& y): y_(std::move(y)) {}
+        };
+
+        EXPECT_TRUE((std::is_convertible_v<cx, expected<Z, empty>>));
+        EXPECT_FALSE((std::is_convertible_v<cy, expected<Z, empty>>));
+
+        cx::reset();
+        cy::reset();
+
+        cx x1;
+        expected<Z, empty> e1(x1);
+        EXPECT_EQ(1, cx::n_copy_ctor);
+
+        expected<Z, empty> e2(cx{});
+        EXPECT_EQ(1, cx::n_move_ctor);
+
+        cy y1;
+        expected<Z, empty> e3(y1);
+        EXPECT_EQ(1, cy::n_copy_ctor);
+
+        expected<Z, empty> e4(cy{});
+        EXPECT_EQ(1, cy::n_move_ctor);
+
+        EXPECT_EQ(1, cx::n_copy_ctor);
+        EXPECT_EQ(1, cx::n_move_ctor);
+        EXPECT_EQ(0, cx::n_copy_assign);
+        EXPECT_EQ(0, cx::n_move_assign);
+
+        EXPECT_EQ(1, cy::n_copy_ctor);
+        EXPECT_EQ(1, cy::n_move_ctor);
+        EXPECT_EQ(0, cy::n_copy_assign);
+        EXPECT_EQ(0, cy::n_move_assign);
+
+        EXPECT_TRUE((std::is_convertible_v<unexpected<cx>, expected<empty, Z>>));
+        EXPECT_FALSE((std::is_convertible_v<unexpected<cy>, expected<empty, Z>>));
+
+        cx::reset();
+        cy::reset();
+
+        unexpected<cx> ux1{std::in_place};
+        expected<empty, Z> u1(ux1);
+        EXPECT_EQ(1, cx::n_copy_ctor);
+
+        expected<empty, Z> u2(unexpected<cx>{std::in_place});
+        EXPECT_EQ(1, cx::n_move_ctor);
+
+        unexpected<cy> uy1{std::in_place};
+        expected<empty, Z> u3(uy1);
+        EXPECT_EQ(1, cy::n_copy_ctor);
+
+        expected<empty, Z> u4(unexpected<cy>{std::in_place});
+        EXPECT_EQ(1, cy::n_move_ctor);
+
+        EXPECT_EQ(1, cx::n_copy_ctor);
+        EXPECT_EQ(1, cx::n_move_ctor);
+        EXPECT_EQ(0, cx::n_copy_assign);
+        EXPECT_EQ(0, cx::n_move_assign);
+
+        EXPECT_EQ(1, cy::n_copy_ctor);
+        EXPECT_EQ(1, cy::n_move_ctor);
+        EXPECT_EQ(0, cy::n_copy_assign);
+        EXPECT_EQ(0, cy::n_move_assign);
+
+        // construct from corresponding expect types
+
+        EXPECT_TRUE((std::is_convertible_v<expected<cx, empty>, expected<Z, empty>>));
+        EXPECT_FALSE((std::is_convertible_v<expected<cy, empty>, expected<Z, empty>>));
+
+        cx::reset();
+        cy::reset();
+
+        expected<cx, empty> ex1;
+        expected<Z, empty> f1(ex1);
+        EXPECT_EQ(1, cx::n_copy_ctor);
+
+        expected<Z, empty> f2(expected<cx, empty>{});
+        EXPECT_EQ(1, cx::n_move_ctor);
+
+        expected<cy, empty> ey1;
+        expected<Z, empty> f3(ey1);
+        EXPECT_EQ(1, cy::n_copy_ctor);
+
+        expected<Z, empty> f4(expected<cy, empty>{});
+        EXPECT_EQ(1, cy::n_move_ctor);
+
+
+        EXPECT_TRUE((std::is_convertible_v<expected<empty, cx>, expected<empty, Z>>));
+        EXPECT_FALSE((std::is_convertible_v<expected<empty, cy>, expected<empty, Z>>));
+
+    }
+
 }
 
 

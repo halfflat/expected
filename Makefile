@@ -16,7 +16,8 @@ gtest-src:=$(gtest-top)/src/gtest-all.cc
 
 vpath %.cc $(top)test
 
-CXXSTD?=c++17
+#CXXSTD?=c++17
+CXXSTD?=c++23
 OPTFLAGS?=-O2 -fsanitize=address -march=native
 CXXFLAGS+=$(OPTFLAGS) -MMD -MP -std=$(CXXSTD) -pedantic -Wall -Wextra -g -pthread
 CPPFLAGS+=-isystem $(gtest-inc) -I $(top)include

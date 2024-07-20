@@ -21,6 +21,12 @@ struct remove_cvref {
 template <typename X>
 using remove_cvref_t = typename remove_cvref<X>::type;
 
+template <typename V, typename U, std::size_t index = (std::variant_size_v<remove_cvref_t<U>>-1)>
+V convert_variant(U&& u) {
+    if (u.index()==index) return V{std::in_place_index<index>, std::get<index>(std::forward<U>(u))};
+    if constexpr (index>0) return convert_variant<V, U, index-1>(std::forward<U>(u));
+    else throw std::bad_variant_access{};
+}
 } // detail
 
 
@@ -51,7 +57,7 @@ private:
 
 // unexpect tag type
 
-struct unexpect_t {};
+struct unexpect_t { explicit unexpect_t() = default; };
 inline constexpr unexpect_t unexpect{};
 
 
@@ -177,7 +183,11 @@ struct expected<T, E, false> {
     template <typename U>
     using rebind = expected<U, error_type>;
 
+    template <typename, typename, bool>
+    friend struct expected;
+
     expected() noexcept(std::is_nothrow_default_constructible_v<data_type>) = default;
+
     expected(const expected&) = default;
     expected(expected&&) noexcept(std::is_nothrow_move_constructible_v<data_type>) = default;
 
@@ -202,7 +212,7 @@ struct expected<T, E, false> {
         > = 0
     >
     expected(const expected<U, F>& other):
-        data_(other.data_) {}
+        data_(detail::convert_variant<decltype(data_)>(other.data_)) {}
 
     // explicit copy construction from a different expected type
     template <
@@ -225,7 +235,7 @@ struct expected<T, E, false> {
         > = true
     >
     explicit expected(const expected<U, F>& other):
-        data_(other.data_) {}
+        data_(detail::convert_variant<decltype(data_)>(other.data_)) {}
 
     // implicit move construction from a different expected type
     template <
@@ -246,7 +256,7 @@ struct expected<T, E, false> {
         > = 0
     >
     expected(expected<U, F>&& other):
-        data_(std::move(other.data_)) {}
+        data_(detail::convert_variant<decltype(data_)>(std::move(other.data_))) {}
 
     // explicit move construction from a different expected type
     template <
@@ -266,8 +276,8 @@ struct expected<T, E, false> {
             int
         > = 0
     >
-    explicit expected(const expected<U, F>& other):
-        data_(std::move(other.data_)) {}
+    explicit expected(expected<U, F>&& other):
+        data_(detail::convert_variant<decltype(data_)>(std::move(other.data_))) {}
 
     // implicit construction from compatible value type
     template <
@@ -308,7 +318,7 @@ struct expected<T, E, false> {
         std::enable_if_t<std::is_convertible_v<F, E>, int> = 0
     >
     expected(const unexpected<F>& unexp):
-        data_(std::in_place_index<1>, unexp) {}
+        data_(std::in_place_index<1>, unexp.error()) {}
 
     // explicit copy construction from compatible unexpected type
     template <
@@ -317,7 +327,7 @@ struct expected<T, E, false> {
         std::enable_if_t<!std::is_convertible_v<F, E>, int> = 0
     >
     explicit expected(const unexpected<F>& unexp):
-        data_(std::in_place_index<1>, unexp) {}
+        data_(std::in_place_index<1>, unexp.error()) {}
 
     // implicit move construction from compatible unexpected type
     template <
@@ -326,7 +336,7 @@ struct expected<T, E, false> {
         std::enable_if_t<std::is_convertible_v<const F&, E>, int> = 0
     >
     expected(unexpected<F>&& unexp):
-        data_(std::in_place_index<1>, std::move(unexp)) {}
+        data_(std::in_place_index<1>, std::move(unexp.error())) {}
 
     // explicit move construction from compatible unexpected type
     template <
@@ -334,8 +344,8 @@ struct expected<T, E, false> {
         std::enable_if_t<std::is_constructible_v<E, F>, int> = 0,
         std::enable_if_t<!std::is_convertible_v<F, E>, int> = 0
     >
-    explicit expected(const unexpected<F>& unexp):
-        data_(std::in_place_index<1>, unexp) {}
+    explicit expected(unexpected<F>&& unexp):
+        data_(std::in_place_index<1>, std::move(unexp.error())) {}
 
     // constructors using in_place_t, unexpect_t
     template <typename... As,
@@ -352,21 +362,21 @@ struct expected<T, E, false> {
     template <typename... As,
               typename = std::enable_if_t<std::is_constructible_v<E, As...>>>
     explicit expected(unexpect_t, As&&... as):
-        data_(std::in_place_index<1>, std::in_place_t{}, std::forward<As>(as)...) {}
+        data_(std::in_place_index<1>, std::forward<As>(as)...) {}
 
     template <typename X, typename... As, typename = std::enable_if_t<std::is_constructible_v<E, std::initializer_list<X>&, As...>>>
     explicit expected(unexpect_t, std::initializer_list<X> il, As&&... as):
-        data_(std::in_place_index<1>, std::in_place_t{}, il, std::forward<As>(as)...) {}
+        data_(std::in_place_index<1>, il, std::forward<As>(as)...) {}
 
     // access methods
 
     explicit operator bool() const noexcept { return data_.index()==0; }
     bool has_value() const noexcept { return data_.index()==0; }
 
-    E& error() & { return std::get<1>(data_).error(); }
-    const E& error() const& { return std::get<1>(data_).error(); }
-    E&& error() && { return std::get<1>(std::move(data_)).error(); }
-    const E&& error() const&& { return std::get<1>(std::move(data_)).error(); }
+    E& error() & { return std::get<1>(data_); }
+    const E& error() const& { return std::get<1>(data_); }
+    E&& error() && { return std::get<1>(std::move(data_)); }
+    const E&& error() const&& { return std::get<1>(std::move(data_)); }
 
     T* operator->() noexcept { return std::get_if<0>(data_); }
     const T* operator->() const noexcept { return std::get_if<0>(data_); }
@@ -551,7 +561,7 @@ struct expected<T, E, false> {
     friend void swap(expected& a, expected& b) noexcept(noexcept(a.swap(b))) { a.swap(b); }
 
 private:
-    using data_type = std::variant<T, unexpected_type>;
+    using data_type = std::variant<T, E>;
     data_type data_;
 };
 
@@ -567,6 +577,8 @@ struct expected<T, E, true> {
     template <typename U>
     using rebind = expected<U, error_type>;
 
+    template <typename, typename, bool>
+    friend struct expected;
 
     expected() noexcept(std::is_nothrow_default_constructible_v<data_type>) = default;
     expected(const expected&) = default;
@@ -726,17 +738,17 @@ struct expected<T, E, true> {
               typename = std::enable_if_t<std::is_constructible_v<T, std::initializer_list<X>&, As...>>>
     explicit expected(std::in_place_t, std::initializer_list<X> il, As&&... as):
         data_(std::in_place_index<0>, il, std::forward<As>(as)...) {}
+#endif
 
     template <typename... As,
               typename = std::enable_if_t<std::is_constructible_v<E, As...>>>
     explicit expected(unexpect_t, As&&... as):
-        data_(std::in_place_index<1>, std::in_place_t{}, std::forward<As>(args)...) {}
+        data_(std::in_place, std::forward<As>(as)...) {}
 
     template <typename X, typename... As, typename = std::enable_if_t<std::is_constructible_v<E, std::initializer_list<X>&, As...>>>
     explicit expected(unexpect_t, std::initializer_list<X> il, As&&... as):
-        data_(std::in_place_index<1>, std::in_place_t{}, il, std::forward<As>(as)...) {}
+        data_(std::in_place, il, std::forward<As>(as)...) {}
 
-#endif
     // access methods
 
     constexpr explicit operator bool() const noexcept { return has_value(); }
@@ -888,7 +900,7 @@ struct expected<T, E, true> {
     friend void swap(expected& a, expected& b) noexcept(noexcept(a.swap(b))) { a.swap(b); }
 
 private:
-    using data_type = std::optional<unexpected_type>;
+    using data_type = std::optional<error_type>;
     data_type data_;
 };
 
