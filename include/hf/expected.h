@@ -369,6 +369,52 @@ struct expected<T, E, false> {
     constexpr explicit expected(unexpect_t, std::initializer_list<X> il, As&&... as):
         data_(std::in_place_index<1>, il, std::forward<As>(as)...) {}
 
+    // assignment
+
+    constexpr expected& operator=(const expected&) = default;
+
+    constexpr expected& operator=(expected&&)
+        noexcept(std::is_nothrow_move_constructible_v<T> &&
+                 std::is_nothrow_move_constructible_v<E> &&
+                 std::is_nothrow_move_assignable_v<T> &&
+                 std::is_nothrow_move_assignable_v<E>) = default;
+
+
+    template <
+        typename U,
+        std::enable_if_t<!std::is_same_v<expected, detail::remove_cvref_t<U>>, int> = 0,
+        std::enable_if_t<!detail::is_unexpected_v<detail::remove_cvref_t<U>>, int> = 0,
+        std::enable_if_t<std::is_constructible_v<T, U>, int> = 0,
+        std::enable_if_t<std::is_assignable_v<T&, U>, int> = 0
+    >
+    constexpr expected& operator=(U&& other) {
+        if (has_value()) std::get<0>(data_) = std::forward<U>(other);
+        else data_.template emplace<0>(std::forward<U>(other));
+        return *this;
+    }
+
+    template <
+        typename G,
+        std::enable_if_t<std::is_constructible_v<E, const G&>, int> = 0,
+        std::enable_if_t<std::is_assignable_v<E&, const G&>, int> =0
+    >
+    constexpr expected& operator=(const unexpected<G>& unexp) {
+        if (!has_value()) std::get<1>(data_) = unexp.error();
+        else data_.template emplace<1>(unexp.error());
+        return *this;
+    }
+
+    template <
+        typename G,
+        std::enable_if_t<std::is_constructible_v<E, G>, int> = 0,
+        std::enable_if_t<std::is_assignable_v<E&, G>, int> =0
+    >
+    constexpr expected& operator=(unexpected<G>&& unexp) {
+        if (!has_value()) std::get<1>(data_) = std::move(unexp).error();
+        else data_.template emplace<1>(std::move(unexp).error());
+        return *this;
+    }
+
     // access methods
 
     explicit operator bool() const noexcept { return data_.index()==0; }
@@ -693,6 +739,34 @@ struct expected<T, E, true> {
     template <typename X, typename... As, typename = std::enable_if_t<std::is_constructible_v<E, std::initializer_list<X>&, As...>>>
     constexpr explicit expected(unexpect_t, std::initializer_list<X> il, As&&... as):
         data_(std::in_place, il, std::forward<As>(as)...) {}
+
+    // assignment
+
+    constexpr expected& operator=(const expected&) = default;
+
+    constexpr expected& operator=(expected&&)
+        noexcept(std::is_nothrow_move_constructible_v<E> &&
+                 std::is_nothrow_move_assignable_v<E>) = default;
+
+    template <
+        typename G,
+        std::enable_if_t<std::is_constructible_v<E, const G&>, int> = 0,
+        std::enable_if_t<std::is_assignable_v<E&, const G&>, int> =0
+    >
+    constexpr expected& operator=(const unexpected<G>& unexp) {
+        data_ = unexp.error();
+        return *this;
+    }
+
+    template <
+        typename G,
+        std::enable_if_t<std::is_constructible_v<E, G>, int> = 0,
+        std::enable_if_t<std::is_assignable_v<E&, G>, int> =0
+    >
+    constexpr expected& operator=(unexpected<G>&& unexp) {
+        data_ = std::move(unexp).error();
+        return *this;
+    }
 
     // access methods
 

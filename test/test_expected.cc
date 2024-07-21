@@ -344,25 +344,31 @@ TEST(expected, ctors) {
 
         expected<empty, cx> gx1(unexpect);
         expected<empty, Z> g1(gx1);
-        EXPECT_EQ(1, cx::n_copy_ctor);
+        expected<void, cx> wx1(unexpect);
+        expected<void, Z> vg1(wx1);
+        EXPECT_EQ(2, cx::n_copy_ctor);
 
         expected<empty, Z> g2(expected<empty, cx>{unexpect});
-        EXPECT_EQ(1, cx::n_move_ctor);
+        expected<void, Z> vg2(expected<void, cx>{unexpect});
+        EXPECT_EQ(2, cx::n_move_ctor);
 
         expected<empty, cy> gy1(unexpect);
         expected<empty, Z> g3(gy1);
-        EXPECT_EQ(1, cy::n_copy_ctor);
+        expected<void, cy> wy1(unexpect);
+        expected<void, Z> vg3(wy1);
+        EXPECT_EQ(2, cy::n_copy_ctor);
 
         expected<empty, Z> g4(expected<empty, cy>{unexpect});
-        EXPECT_EQ(1, cy::n_move_ctor);
+        expected<void, Z> vg4(expected<void, cy>{unexpect});
+        EXPECT_EQ(2, cy::n_move_ctor);
 
-        EXPECT_EQ(1, cx::n_copy_ctor);
-        EXPECT_EQ(1, cx::n_move_ctor);
+        EXPECT_EQ(2, cx::n_copy_ctor);
+        EXPECT_EQ(2, cx::n_move_ctor);
         EXPECT_EQ(0, cx::n_copy_assign);
         EXPECT_EQ(0, cx::n_move_assign);
 
-        EXPECT_EQ(1, cy::n_copy_ctor);
-        EXPECT_EQ(1, cy::n_move_ctor);
+        EXPECT_EQ(2, cy::n_copy_ctor);
+        EXPECT_EQ(2, cy::n_move_ctor);
         EXPECT_EQ(0, cy::n_copy_assign);
         EXPECT_EQ(0, cy::n_move_assign);
     }
