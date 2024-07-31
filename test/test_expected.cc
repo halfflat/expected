@@ -375,75 +375,258 @@ TEST(expected, ctors) {
 }
 
 TEST(expected, assignment) {
-}
-
-#if 0
-TEST(expected, assignment) {
     {
-        expected<int, int> x(10), y(12), z(unexpect, 20);
+        // copy and move assignment from same expected type
 
-        EXPECT_EQ(12, (x=y).value());
-        EXPECT_EQ(20, (x=z).error());
+        struct X {};
+        struct Y {};
 
-        expected<void, int> u, v, w(unexpect, 30);
+        using cx = counted<X>;
+        using cy = counted<Y>;
 
-        EXPECT_TRUE((u=v).has_value());
-        EXPECT_EQ(30, (u=w).error());
+        cx::reset();
+        cy::reset();
+
+        expected<cx, cy> be;
+        expected<cx, cy> bu(unexpect);
+
+        expected<cx, cy> ae1, ae2, ae3, ae4;
+        expected<cx, cy> au1(unexpect), au2(unexpect), au3(unexpect), au4(unexpect);
+
+        cx::reset();
+        cy::reset();
+
+        ae1 = be;
+        EXPECT_TRUE(ae1.has_value());
+        EXPECT_EQ(1, cx::n_copy_assign);
+
+        ae2 = bu;
+        EXPECT_FALSE(ae2.has_value());
+        EXPECT_EQ(1, cy::n_copy_ctor);
+
+        ae3 = expected<cx, cy>{};
+        EXPECT_TRUE(ae3.has_value());
+        EXPECT_EQ(1, cx::n_move_assign);
+
+        ae4 = expected<cx, cy>(unexpect);
+        EXPECT_FALSE(ae4.has_value());
+        EXPECT_EQ(1, cy::n_move_ctor);
+
+        au1 = be;
+        EXPECT_TRUE(au1.has_value());
+        EXPECT_EQ(1, cx::n_copy_ctor);
+
+        au2 = bu;
+        EXPECT_FALSE(au2.has_value());
+        EXPECT_EQ(1, cy::n_copy_assign);
+
+        au3 = expected<cx, cy>{};
+        EXPECT_TRUE(au3.has_value());
+        EXPECT_EQ(1, cx::n_move_ctor);
+
+        au4 = expected<cx, cy>(unexpect);
+        EXPECT_FALSE(au4.has_value());
+        EXPECT_EQ(1, cy::n_move_assign);
+
+        // check total ctors, assigns
+
+        EXPECT_EQ(1, cx::n_copy_ctor);
+        EXPECT_EQ(1, cx::n_move_ctor);
+        EXPECT_EQ(1, cx::n_copy_assign);
+        EXPECT_EQ(1, cx::n_move_assign);
+
+        EXPECT_EQ(1, cy::n_copy_ctor);
+        EXPECT_EQ(1, cy::n_move_ctor);
+        EXPECT_EQ(1, cy::n_copy_assign);
+        EXPECT_EQ(1, cy::n_move_assign);
+
+        // expected<void,...> cases
+
+        expected<void, cy> vbe;
+        expected<void, cy> vbu(unexpect);
+
+        expected<void, cy> vae1, vae2, vae3, vae4;
+        expected<void, cy> vau1(unexpect), vau2(unexpect), vau3(unexpect), vau4(unexpect);
+
+        cy::reset();
+
+        vae1 = vbe;
+        EXPECT_TRUE(vae1.has_value());
+
+        vae2 = vbu;
+        EXPECT_FALSE(vae2.has_value());
+        EXPECT_EQ(1, cy::n_copy_ctor);
+
+        vae3 = expected<void, cy>{};
+        EXPECT_TRUE(vae3.has_value());
+
+        vae4 = expected<void, cy>(unexpect);
+        EXPECT_FALSE(vae4.has_value());
+        EXPECT_EQ(1, cy::n_move_ctor);
+
+        vau1 = vbe;
+        EXPECT_TRUE(vau1.has_value());
+
+        vau2 = vbu;
+        EXPECT_FALSE(vau2.has_value());
+        EXPECT_EQ(1, cy::n_copy_assign);
+
+        vau3 = expected<void, cy>{};
+        EXPECT_TRUE(vau3.has_value());
+
+        vau4 = expected<void, cy>(unexpect);
+        EXPECT_FALSE(vau4.has_value());
+        EXPECT_EQ(1, cy::n_move_assign);
+
+        EXPECT_EQ(1, cy::n_copy_ctor);
+        EXPECT_EQ(1, cy::n_move_ctor);
+        EXPECT_EQ(1, cy::n_copy_assign);
+        EXPECT_EQ(1, cy::n_move_assign);
     }
 
     {
-        struct X {
-            X(): v(0) {}
-            X(const int& a): v(10*a) {}
-            X(int&& a): v(20*a) {}
-            int v;
+        // assignment from value type
+
+        struct X {};
+        struct Y {};
+
+        using cx = counted<X>;
+        using cy = counted<Y>;
+
+        expected<cx, cy> ae1, ae2, au1(unexpect), au2(unexpect);
+
+        cx::reset();
+        cy::reset();
+
+        cx x;
+
+        ae1 = x;
+        EXPECT_TRUE(ae1.has_value());
+        EXPECT_EQ(1, cx::n_copy_assign);
+
+        ae2 = cx{};
+        EXPECT_TRUE(ae2.has_value());
+        EXPECT_EQ(1, cx::n_move_assign);
+
+        au1 = x;
+        EXPECT_TRUE(au1.has_value());
+        EXPECT_EQ(1, cx::n_copy_ctor);
+
+        au2 = cx{};
+        EXPECT_TRUE(au2.has_value());
+        EXPECT_EQ(1, cx::n_move_ctor);
+
+        EXPECT_EQ(1, cx::n_copy_ctor);
+        EXPECT_EQ(1, cx::n_move_ctor);
+        EXPECT_EQ(1, cx::n_copy_assign);
+        EXPECT_EQ(1, cx::n_move_assign);
+    }
+
+    {
+        // assignment from compatible value type
+
+        struct X {};
+        struct Z {
+            Z() = default;
+            Z(const X&): cc(true) {}
+            Z(X&&): mc(true) {}
+
+            Z& operator=(const X&) { return ca=true, *this; }
+            Z& operator=(X&&) { return ma=true, *this; }
+
+            bool cc = false;
+            bool mc = false;
+            bool ca = false;
+            bool ma = false;
         };
 
-        expected<X, int> y;
-        EXPECT_EQ(20, (y=1).value().v);
-        int a = 3;
-        EXPECT_EQ(30, (y=a).value().v);
+        expected<Z, X> z1, z2, zu1(unexpect), zu2(unexpect);
+        X x;
+        z1 = x;
+        ASSERT_TRUE(z1.has_value());
+        EXPECT_TRUE(z1.value().ca);
 
-        expected<int, X> z;
-        EXPECT_EQ(20, (z=unexpected(1)).error().v);
-        unexpected<int> b(3);
-        EXPECT_EQ(30, (z=b).error().v);
+        z2 = X{};
+        ASSERT_TRUE(z2.has_value());
+        EXPECT_TRUE(z2.value().ma);
 
-        expected<void, X> v;
-        EXPECT_EQ(20, (v=unexpected(1)).error().v);
-        EXPECT_EQ(30, (v=b).error().v);
+        zu1 = x;
+        ASSERT_TRUE(zu1.has_value());
+        EXPECT_TRUE(zu1.value().cc);
+
+        zu2 = X{};
+        ASSERT_TRUE(zu2.has_value());
+        EXPECT_TRUE(zu2.value().mc);
+    }
+
+    {
+        // asignment from unexpected type
+
+
+        // expected<void, ...> cases
+    }
+    {
+        // asignment from compatible unexpected type
+
+        // expected<void, ...> cases
     }
 }
 
 TEST(expected, emplace) {
-    // Check we're forwarding properly...
-    struct X {
-        X(): v(0) {}
-        X(const int& a, int b): v(10*a + b) {}
-        X(int&& a, int b): v(20*a + b) {}
-        int v;
-    };
+    using cc = counted<check_in_place>;
+    struct empty {};
 
-    expected<X, bool> ex;
-    EXPECT_TRUE(ex);
-    EXPECT_EQ(0, ex.value().v);
+    {
+        cc::reset();
+        expected<cc, empty> ex(in_place);
 
-    int i = 3, j = 4;
-    ex.emplace(i, j);
-    EXPECT_TRUE(ex);
-    EXPECT_EQ(34, ex.value().v);
-    ex.emplace(3, j);
-    EXPECT_TRUE(ex);
-    EXPECT_EQ(64, ex.value().v);
+        EXPECT_TRUE(ex.has_value());
+        EXPECT_EQ(0, ex.value().inner.n_in_place_args);
 
-    // Should also work if ex was in error state.
-    expected<X, bool> ux(unexpect);
-    EXPECT_FALSE(ux);
-    ux.emplace(4, 1);
-    EXPECT_TRUE(ux);
-    EXPECT_EQ(81, ux.value().v);
+        ex.emplace(10);
+        EXPECT_TRUE(ex.has_value());
+        EXPECT_EQ(1, ex.value().inner.n_in_place_args);
+
+        ex.emplace(10, 20);
+        EXPECT_TRUE(ex.has_value());
+        EXPECT_EQ(2, ex.value().inner.n_in_place_args);
+
+        ex.emplace({3, 4, 5});
+        EXPECT_EQ(1, ex.value().inner.n_in_place_args);
+        EXPECT_TRUE(ex.has_value());
+
+        ex.emplace({3, 4, 5}, 20, 30);
+        EXPECT_TRUE(ex.has_value());
+        EXPECT_EQ(3, ex.value().inner.n_in_place_args);
+
+        expected<cc, empty> mt(unexpect);
+        EXPECT_FALSE(mt.has_value());
+
+        mt.emplace({3, 4, 5}, 20, 30);
+        EXPECT_TRUE(mt.has_value());
+        EXPECT_EQ(3, mt.value().inner.n_in_place_args);
+
+        EXPECT_EQ(0, cc::n_copy_ctor);
+        EXPECT_EQ(0, cc::n_move_ctor);
+        EXPECT_EQ(0, cc::n_copy_assign);
+        EXPECT_EQ(0, cc::n_move_assign);
+
+        expected<void, empty> v;
+        EXPECT_TRUE(v.has_value());
+
+        v.emplace();
+        EXPECT_TRUE(v.has_value());
+
+        expected<void, empty> w(unexpect);
+        EXPECT_FALSE(w.has_value());
+
+        w.emplace();
+        EXPECT_TRUE(w.has_value());
+    }
 }
 
+
+#if 0
 TEST(expected, equality) {
     {
         // non-void value expected comparisons:
