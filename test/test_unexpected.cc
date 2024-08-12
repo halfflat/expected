@@ -4,11 +4,13 @@
 #include <utility>
 #include <vector>
 
-#include <hf/expected.h>
+#include <backport/expected.h>
 #include "common.h"
 
+using backport::expected;
+using backport::unexpect;
+using backport::unexpected;
 using std::in_place;
-using namespace hf;
 
 TEST(unexpected, ctors) {
     using cc = counted<check_in_place>;

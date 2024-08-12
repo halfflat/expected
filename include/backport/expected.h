@@ -8,20 +8,11 @@
 #include <utility>
 #include <variant>
 
-namespace hf {
+namespace backport {
 
 namespace detail {
 
-// (std::remove_cvref is provided in C++20)
-template <typename X>
-struct remove_cvref {
-    using type = std::remove_cv_t<std::remove_reference_t<X>>;
-};
-
-template <typename X>
-using remove_cvref_t = typename remove_cvref<X>::type;
-
-template <typename V, typename U, std::size_t index = (std::variant_size_v<remove_cvref_t<U>>-1)>
+template <typename V, typename U, std::size_t index = (std::variant_size_v<std::remove_cv_t<std::remove_reference_t<U>>>-1)>
 constexpr V convert_variant(U&& u) {
     if (u.index()==index) return V{std::in_place_index<index>, std::get<index>(std::forward<U>(u))};
     if constexpr (index>0) return convert_variant<V, U, index-1>(std::forward<U>(u));
@@ -76,8 +67,8 @@ struct unexpected {
 
     template <typename F,
         typename = std::enable_if_t<std::is_constructible_v<E, F>>,
-        typename = std::enable_if_t<!std::is_same_v<std::in_place_t, detail::remove_cvref_t<F>>>,
-        typename = std::enable_if_t<!std::is_same_v<unexpected, detail::remove_cvref_t<F>>>
+        typename = std::enable_if_t<!std::is_same_v<std::in_place_t, std::remove_cv_t<std::remove_reference_t<F>>>>,
+        typename = std::enable_if_t<!std::is_same_v<unexpected, std::remove_cv_t<std::remove_reference_t<F>>>>
     >
     constexpr explicit unexpected(F&& f):
         error_(std::forward<F>(f)) {}
@@ -100,10 +91,10 @@ struct unexpected {
     // comparison
 
     template <typename F>
-    friend constexpr bool operator==(const unexpected x, const hf::unexpected<F>& y) { return x.error()==y.error(); }
+    friend constexpr bool operator==(const unexpected x, const backport::unexpected<F>& y) { return x.error()==y.error(); }
 
     template <typename F>
-    friend constexpr bool operator!=(const unexpected x, const hf::unexpected<F>& y) { return x.error()!=y.error(); }
+    friend constexpr bool operator!=(const unexpected x, const backport::unexpected<F>& y) { return x.error()!=y.error(); }
 
     // swap
 
@@ -285,10 +276,10 @@ struct expected<T, E, false> {
         typename U,
         std::enable_if_t<
             std::is_constructible_v<T, U> &&
-            !std::is_same_v<std::in_place_t, detail::remove_cvref_t<U>> &&
-            !std::is_same_v<expected, detail::remove_cvref_t<U>> &&
-            !detail::is_unexpected_v<detail::remove_cvref_t<U>> &&
-            !(std::is_same_v<bool, detail::remove_cvref_t<T>> && detail::is_expected_v<detail::remove_cvref_t<U>>),
+            !std::is_same_v<std::in_place_t, std::remove_cv_t<std::remove_reference_t<U>>> &&
+            !std::is_same_v<expected, std::remove_cv_t<std::remove_reference_t<U>>> &&
+            !detail::is_unexpected_v<std::remove_cv_t<std::remove_reference_t<U>>> &&
+            !(std::is_same_v<bool, std::remove_cv_t<std::remove_reference_t<T>>> && detail::is_expected_v<std::remove_cv_t<std::remove_reference_t<U>>>),
             int
         > = 0,
         std::enable_if_t<std::is_convertible_v<U, T>, int> = 0
@@ -301,10 +292,10 @@ struct expected<T, E, false> {
         typename U,
         std::enable_if_t<
             std::is_constructible_v<T, U> &&
-            !std::is_same_v<std::in_place_t, detail::remove_cvref_t<U>> &&
-            !std::is_same_v<expected, detail::remove_cvref_t<U>> &&
-            !detail::is_unexpected_v<detail::remove_cvref_t<U>> &&
-            !(std::is_same_v<bool, detail::remove_cvref_t<T>> && detail::is_expected_v<detail::remove_cvref_t<U>>),
+            !std::is_same_v<std::in_place_t, std::remove_cv_t<std::remove_reference_t<U>>> &&
+            !std::is_same_v<expected, std::remove_cv_t<std::remove_reference_t<U>>> &&
+            !detail::is_unexpected_v<std::remove_cv_t<std::remove_reference_t<U>>> &&
+            !(std::is_same_v<bool, std::remove_cv_t<std::remove_reference_t<T>>> && detail::is_expected_v<std::remove_cv_t<std::remove_reference_t<U>>>),
             int
         > = 0,
         std::enable_if_t<!std::is_convertible_v<U, T>, int> = 0
@@ -382,8 +373,8 @@ struct expected<T, E, false> {
 
     template <
         typename U,
-        std::enable_if_t<!std::is_same_v<expected, detail::remove_cvref_t<U>>, int> = 0,
-        std::enable_if_t<!detail::is_unexpected_v<detail::remove_cvref_t<U>>, int> = 0,
+        std::enable_if_t<!std::is_same_v<expected, std::remove_cv_t<std::remove_reference_t<U>>>, int> = 0,
+        std::enable_if_t<!detail::is_unexpected_v<std::remove_cv_t<std::remove_reference_t<U>>>, int> = 0,
         std::enable_if_t<std::is_constructible_v<T, U>, int> = 0,
         std::enable_if_t<std::is_assignable_v<T&, U>, int> = 0
     >
@@ -477,49 +468,49 @@ struct expected<T, E, false> {
 
     template <typename F>
     auto and_then(F&& f) & {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, T&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T&>>>;
         return *this? std::invoke(std::forward<F>(f), **this): R(unexpect, error());
     }
 
     template <typename F>
     auto and_then(F&& f) const& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, const T&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, const T&>>>;
         return *this? std::invoke(std::forward<F>(f), **this): R(unexpect, error());
     }
 
     template <typename F>
     auto and_then(F&& f) && {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, T&&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T&&>>>;
         return *this? std::invoke(std::forward<F>(f), std::move(**this)): R(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto and_then(F&& f) const&& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, const T&&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, const T&&>>>;
         return *this? std::invoke(std::forward<F>(f), std::move(**this)): R(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto or_else(F&& f) & {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, E&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, E&>>>;
         return *this? R(std::in_place, **this): std::invoke(std::forward<F>(f), error());
     }
 
     template <typename F>
     auto or_else(F&& f) const& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, const E&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, const E&>>>;
         return *this? R(std::in_place, **this): std::invoke(std::forward<F>(f), error());
     }
 
     template <typename F>
     auto or_else(F&& f) && {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, E&&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, E&&>>>;
         return *this? R(std::in_place, std::move(**this)): std::invoke(std::forward<F>(f), std::move(error()));
     }
 
     template <typename F>
     auto or_else(F&& f) const&& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, const E&&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, const E&&>>>;
         return *this? R(std::in_place, std::move(**this)): std::invoke(std::forward<F>(f), std::move(error()));
     }
 
@@ -799,49 +790,49 @@ struct expected<T, E, true> {
 
     template <typename F>
     auto and_then(F&& f) & {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F>>>;
         return *this? std::invoke(std::forward<F>(f)): R(unexpect, error());
     }
 
     template <typename F>
     auto and_then(F&& f) const& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F>>>;
         return *this? std::invoke(std::forward<F>(f)): R(unexpect, error());
     }
 
     template <typename F>
     auto and_then(F&& f) && {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F>>>;
         return *this? std::invoke(std::forward<F>(f)): R(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto and_then(F&& f) const&& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F>>>;
         return *this? std::invoke(std::forward<F>(f)): R(unexpect, std::move(error()));
     }
 
     template <typename F>
     auto or_else(F&& f) & {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, E&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, E&>>>;
         return *this? R(): std::invoke(std::forward<F>(f), error());
     }
 
     template <typename F>
     auto or_else(F&& f) const& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, const E&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, const E&>>>;
         return *this? R(): std::invoke(std::forward<F>(f), error());
     }
 
     template <typename F>
     auto or_else(F&& f) && {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, E&&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, E&&>>>;
         return *this? R(): std::invoke(std::forward<F>(f), std::move(error()));
     }
 
     template <typename F>
     auto or_else(F&& f) const&& {
-        using R = detail::remove_cvref_t<std::invoke_result_t<F, const E&&>>;
+        using R = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, const E&&>>>;
         return *this? R(): std::invoke(std::forward<F>(f), std::move(error()));
     }
 
@@ -923,4 +914,4 @@ private:
     data_type data_;
 };
 
-} // namespace hf
+} // namespace backport

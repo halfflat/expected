@@ -3,10 +3,12 @@
 #include <utility>
 #include <vector>
 
-#include <hf/expected.h>
+#include <backport/expected.h>
 #include "common.h"
 
-using namespace hf;
+using backport::expected;
+using backport::unexpect;
+using backport::unexpected;
 using std::in_place;
 
 TEST(expected, ctors) {
