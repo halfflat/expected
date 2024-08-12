@@ -464,6 +464,40 @@ struct expected<T, E, false> {
         return std::move(error());
     }
 
+    // comparison operations
+
+    template <typename U, typename F, std::enable_if_t<!std::is_void_v<F>, int> = 0>
+    friend constexpr bool operator==(const expected& x, const backport::expected<U, F>& y) {
+        return x.data_ == y.data_;
+    }
+
+    template <typename U, std::enable_if_t<!detail::is_expected_v<U> && !detail::is_unexpected_v<U>, int> = 0>
+    friend constexpr bool operator==(const expected& x, const U& y) {
+        return x.has_value() && *x == y;
+    }
+
+    template <typename F>
+    friend constexpr bool operator==(const expected& x, const backport::unexpected<F>& y) {
+        return !x.has_value() && x.error() == y.error();
+    }
+
+#if __cplusplus < 202002L
+    template <typename U, typename F, std::enable_if_t<!std::is_void_v<F>, int> = 0>
+    friend constexpr bool operator!=(const expected& x, const backport::expected<U, F>& y) {
+        return !(x==y);
+    }
+
+    template <typename U, std::enable_if_t<!detail::is_expected_v<U> && !detail::is_unexpected_v<U>, int> = 0>
+    friend constexpr bool operator!=(const expected& x, const U& y) {
+        return !(x==y);
+    }
+
+    template <typename F>
+    friend constexpr bool operator!=(const expected& x, const backport::unexpected<F>& y) {
+        return !(x==y);
+    }
+#endif
+
     // monadic operations
 
     template <typename F>
@@ -785,6 +819,30 @@ struct expected<T, E, true> {
         if (has_value()) return std::forward<U>(alt);
         return std::move(error());
     }
+
+    // comparison operations
+
+    template <typename U, typename F, std::enable_if_t<std::is_void_v<U>, int> = 0>
+    friend constexpr bool operator==(const expected& x, const backport::expected<U, F>& y) {
+        return x.data_ == y.data_;
+    }
+
+    template <typename F>
+    friend constexpr bool operator==(const expected& x, const backport::unexpected<F>& y) {
+        return !x.has_value() && x.error() == y.error();
+    }
+
+#if __cplusplus < 202002L
+    template <typename U, typename F, std::enable_if_t<std::is_void_v<U>, int> = 0>
+    friend constexpr bool operator!=(const expected& x, const backport::expected<U, F>& y) {
+        return !(x==y);
+    }
+
+    template <typename F>
+    friend constexpr bool operator!=(const expected& x, const backport::unexpected<F>& y) {
+        return !(x==y);
+    }
+#endif
 
     // monadic operations
 

@@ -628,7 +628,6 @@ TEST(expected, emplace) {
 }
 
 
-#if 0
 TEST(expected, equality) {
     {
         // non-void value expected comparisons:
@@ -743,6 +742,8 @@ TEST(expected, equality) {
         EXPECT_FALSE(unexpected(10)!=x);
     }
 }
+
+#if 0
 
 TEST(expected, value_or) {
     expected<double, char> a(2.0), b(unexpect, 'x');

@@ -11,7 +11,12 @@ It provides templated classes `expected`, `unexpected`, the exception class
 `bad_expected_access`, the class `unexpect_t` and inline constexpr value
 `unexpect`.
 
-Implementation is complete, but not completely tested.
+Implementation is mostly complete, but not completely tested.
+
+## Caveats
+
+Implicit synthetic comparisons are used in C++20 for operator!=, but are defined
+explicitly (with backport::expected as the first argument) in C++17.
 
 ## Building and running the unit tests
 
