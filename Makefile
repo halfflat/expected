@@ -37,7 +37,7 @@ test-gcda:=$(patsubst %.cc, %.gcda, $(test-src))
 
 ifdef coverage
 test_%.o: test_%.cc
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) --keep-inline-functions --coverage --param=max-vartrack-size=100000000 -o $@ -c $<
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fkeep-inline-functions --coverage --param=max-vartrack-size=100000000 -o $@ -c $<
 else
 test_%.o: test_%.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ -c $<

@@ -193,9 +193,9 @@ struct expected<T, E, false> {
             std::is_constructible_v<T, Ucref> &&
             std::is_constructible_v<E, Fcref> &&
             (std::is_same_v<bool, std::remove_cv_t<T>> ||
-                !detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
+                (!detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
                 !detail::is_convertible_from_any_cref_v<expected<U, F>, T> &&
-                !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>),
+                !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>)),
             int
         > = 0,
         std::enable_if_t<
@@ -216,9 +216,9 @@ struct expected<T, E, false> {
             std::is_constructible_v<T, Ucref> &&
             std::is_constructible_v<E, Fcref> &&
             (std::is_same_v<bool, std::remove_cv_t<T>> ||
-                !detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
+                (!detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
                 !detail::is_convertible_from_any_cref_v<expected<U, F>, T> &&
-                !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>),
+                !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>)),
             int
         > = 0,
         std::enable_if_t<
@@ -237,9 +237,9 @@ struct expected<T, E, false> {
             std::is_constructible_v<T, U> &&
             std::is_constructible_v<E, F> &&
             (std::is_same_v<bool, std::remove_cv_t<T>> ||
-                !detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
+                (!detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
                 !detail::is_convertible_from_any_cref_v<expected<U, F>, T> &&
-                !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>),
+                !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>)),
             int
         > = 0,
         std::enable_if_t<
@@ -258,9 +258,9 @@ struct expected<T, E, false> {
             std::is_constructible_v<T, U> &&
             std::is_constructible_v<E, F> &&
             (std::is_same_v<bool, std::remove_cv_t<T>> ||
-                !detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
+                (!detail::is_constructible_from_any_cref_v<T, expected<U, F>> &&
                 !detail::is_convertible_from_any_cref_v<expected<U, F>, T> &&
-                !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>),
+                !detail::is_constructible_from_any_cref_v<unexpected<E>, expected<U, F>>)),
             int
         > = 0,
         std::enable_if_t<
