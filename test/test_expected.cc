@@ -522,6 +522,57 @@ TEST(expected, assignment) {
         EXPECT_EQ(1, cx::n_move_ctor);
         EXPECT_EQ(1, cx::n_copy_assign);
         EXPECT_EQ(1, cx::n_move_assign);
+
+        // asignment from unexpected type
+
+        expected<cx, cy> be1, be2, bu1(unexpect), bu2(unexpect);
+
+        cx::reset();
+        cy::reset();
+
+        unexpected<cy> y(in_place);
+        be1 = y;
+        EXPECT_FALSE(be1.has_value());
+        EXPECT_EQ(1, cy::n_copy_ctor);
+        EXPECT_EQ(0, cy::n_copy_assign);
+
+        be2 = unexpected(cy{});
+        EXPECT_FALSE(be2.has_value());
+        EXPECT_EQ(2, cy::n_move_ctor);
+        EXPECT_EQ(0, cy::n_move_assign);
+
+        bu1 = y;
+        EXPECT_FALSE(bu1.has_value());
+        EXPECT_EQ(1, cy::n_copy_assign);
+
+        bu2 = unexpected(cy{});
+        EXPECT_FALSE(bu2.has_value());
+        EXPECT_EQ(1, cy::n_move_assign);
+
+        // expected<void, ...> case: assignment from unexpected type
+
+        expected<void, cy> ve1, ve2, vu1(unexpect), vu2(unexpect);
+
+        cy::reset();
+
+        ve1 = y;
+        EXPECT_FALSE(ve1.has_value());
+        EXPECT_EQ(1, cy::n_copy_ctor);
+        EXPECT_EQ(0, cy::n_copy_assign);
+
+        ve2 = unexpected(cy{});
+        EXPECT_FALSE(ve2.has_value());
+        EXPECT_EQ(2, cy::n_move_ctor);
+        EXPECT_EQ(0, cy::n_move_assign);
+
+        vu1 = y;
+        EXPECT_FALSE(vu1.has_value());
+        EXPECT_EQ(1, cy::n_copy_assign);
+
+        vu2 = unexpected(cy{});
+        EXPECT_FALSE(vu2.has_value());
+        EXPECT_EQ(1, cy::n_move_assign);
+
     }
 
     {
@@ -542,35 +593,62 @@ TEST(expected, assignment) {
             bool ma = false;
         };
 
-        expected<Z, X> z1, z2, zu1(unexpect), zu2(unexpect);
+        expected<Z, X> ae1, ae2, au1(unexpect), au2(unexpect);
         X x;
-        z1 = x;
-        ASSERT_TRUE(z1.has_value());
-        EXPECT_TRUE(z1.value().ca);
+        ae1 = x;
+        ASSERT_TRUE(ae1.has_value());
+        EXPECT_TRUE(ae1.value().ca);
 
-        z2 = X{};
-        ASSERT_TRUE(z2.has_value());
-        EXPECT_TRUE(z2.value().ma);
+        ae2 = X{};
+        ASSERT_TRUE(ae2.has_value());
+        EXPECT_TRUE(ae2.value().ma);
 
-        zu1 = x;
-        ASSERT_TRUE(zu1.has_value());
-        EXPECT_TRUE(zu1.value().cc);
+        au1 = x;
+        ASSERT_TRUE(au1.has_value());
+        EXPECT_TRUE(au1.value().cc);
 
-        zu2 = X{};
-        ASSERT_TRUE(zu2.has_value());
-        EXPECT_TRUE(zu2.value().mc);
-    }
+        au2 = X{};
+        ASSERT_TRUE(au2.has_value());
+        EXPECT_TRUE(au2.value().mc);
 
-    {
-        // asignment from unexpected type
-
-
-        // expected<void, ...> cases
-    }
-    {
         // asignment from compatible unexpected type
 
-        // expected<void, ...> cases
+        expected<X, Z> be1, be2, bu1(unexpect), bu2(unexpect);
+        unexpected<X> ux(in_place);
+        be1 = ux;
+        ASSERT_FALSE(be1.has_value());
+        EXPECT_TRUE(be1.error().cc);
+
+        be2 = unexpected(X{});
+        ASSERT_FALSE(be2.has_value());
+        EXPECT_TRUE(be2.error().mc);
+
+        bu1 = ux;
+        ASSERT_FALSE(bu1.has_value());
+        EXPECT_TRUE(bu1.error().ca);
+
+        bu2 = unexpected(X{});
+        ASSERT_FALSE(bu2.has_value());
+        EXPECT_TRUE(bu2.error().ma);
+
+        // expected<void, ...> assignment from compatible unexpected type
+
+        expected<void, Z> ve1, ve2, vu1(unexpect), vu2(unexpect);
+        ve1 = ux;
+        ASSERT_FALSE(ve1.has_value());
+        EXPECT_TRUE(ve1.error().cc);
+
+        ve2 = unexpected(X{});
+        ASSERT_FALSE(ve2.has_value());
+        EXPECT_TRUE(ve2.error().mc);
+
+        vu1 = ux;
+        ASSERT_FALSE(vu1.has_value());
+        EXPECT_TRUE(vu1.error().ca);
+
+        vu2 = unexpected(X{});
+        ASSERT_FALSE(vu2.has_value());
+        EXPECT_TRUE(vu2.error().ma);
     }
 }
 
