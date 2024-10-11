@@ -9,6 +9,7 @@
 using backport::expected;
 using backport::unexpect;
 using backport::unexpected;
+using backport::bad_expected_access;
 using std::in_place;
 
 TEST(expected, ctors) {
@@ -821,13 +822,101 @@ TEST(expected, equality) {
     }
 }
 
-#if 0
+TEST(expected, bool_conv) {
+    struct X{};
+    struct Y{};
 
-TEST(expected, value_or) {
-    expected<double, char> a(2.0), b(unexpect, 'x');
-    EXPECT_EQ(2.0, a.value_or(1));
-    EXPECT_EQ(1.0, b.value_or(1));
+    EXPECT_TRUE(static_cast<bool>(expected<X, Y>{}));
+    EXPECT_FALSE(static_cast<bool>(expected<X, Y>{unexpect}));
+
+    EXPECT_TRUE(static_cast<bool>(expected<void, Y>{}));
+    EXPECT_FALSE(static_cast<bool>(expected<void, Y>{unexpect}));
 }
+
+TEST(expected, value_error_types) {
+    struct X{};
+    struct Y{};
+
+    using Exy = expected<X, Y>;
+    using Evy = expected<void, Y>;
+
+    Exy exy;
+    const Exy cexy;
+
+    EXPECT_TRUE((std::is_same_v<X&, decltype(exy.value())>));
+    EXPECT_TRUE((std::is_same_v<const X&, decltype(cexy.value())>));
+
+    EXPECT_TRUE((std::is_same_v<X&&, decltype(std::move(exy).value())>));
+    EXPECT_TRUE((std::is_same_v<const X&&, decltype(std::move(cexy).value())>));
+
+    EXPECT_TRUE((std::is_same_v<Y&, decltype(exy.error())>));
+    EXPECT_TRUE((std::is_same_v<const Y&, decltype(cexy.error())>));
+
+    Evy evy;
+    const Evy cevy;
+
+    EXPECT_TRUE((std::is_same_v<void, decltype(evy.value())>));
+    EXPECT_TRUE((std::is_same_v<void, decltype(cevy.value())>));
+
+    EXPECT_TRUE((std::is_same_v<void, decltype(std::move(evy).value())>));
+    EXPECT_TRUE((std::is_same_v<void, decltype(std::move(cevy).value())>));
+
+    EXPECT_TRUE((std::is_same_v<Y&, decltype(evy.error())>));
+    EXPECT_TRUE((std::is_same_v<const Y&, decltype(cevy.error())>));
+}
+
+TEST(expected, access) {
+    struct X { int v; };
+    struct Y { int v; };
+
+    expected<X, Y> e1(X{3}), e2(unexpect, Y{4});
+    const expected<X, Y> ce1(X{13}), ce2(unexpect, Y{14});
+
+    EXPECT_THROW(e2.value(), bad_expected_access<Y>);
+    EXPECT_THROW(std::move(e2).value(), bad_expected_access<Y>);
+    EXPECT_THROW(ce2.value(), bad_expected_access<Y>);
+    EXPECT_THROW(std::move(ce2).value(), bad_expected_access<Y>);
+
+    EXPECT_EQ(3, e1.value().v);
+    EXPECT_EQ(13, ce1.value().v);
+
+    EXPECT_EQ(3, e1->v);
+    EXPECT_EQ(13, ce1->v);
+
+    EXPECT_EQ(4, e2.error().v);
+    EXPECT_EQ(4, std::move(e2).error().v);
+    EXPECT_EQ(14, ce2.error().v);
+    EXPECT_EQ(14, std::move(ce2).error().v);
+
+    EXPECT_EQ(3, e1.value_or(X{-3}).v);
+    EXPECT_EQ(13, ce1.value_or(X{-13}).v);
+    EXPECT_EQ(-3, e2.value_or(X{-3}).v);
+    EXPECT_EQ(-13, ce2.value_or(X{-13}).v);
+
+    EXPECT_EQ(-3, e1.error_or(Y{-3}).v);
+    EXPECT_EQ(-13, ce1.error_or(Y{-13}).v);
+    EXPECT_EQ(4, e2.error_or(Y{-3}).v);
+    EXPECT_EQ(14, ce2.error_or(Y{-13}).v);
+
+    ASSERT_TRUE(static_cast<bool>(e1));
+    ASSERT_TRUE(static_cast<bool>(std::move(e1)));
+    ASSERT_TRUE(static_cast<bool>(ce1));
+    ASSERT_TRUE(static_cast<bool>(std::move(ce1)));
+
+    ASSERT_FALSE(static_cast<bool>(e2));
+    ASSERT_FALSE(static_cast<bool>(std::move(e2)));
+    ASSERT_FALSE(static_cast<bool>(ce2));
+    ASSERT_FALSE(static_cast<bool>(std::move(e2)));
+
+    // TODO: add checks for move construction of return type
+    // of value_or, error_or from rvalue.
+
+    // TODO: add expected<void, ...> cases
+}
+
+
+
+#if 0
 
 namespace {
 struct Xswap {

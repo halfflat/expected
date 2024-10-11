@@ -416,8 +416,8 @@ struct expected<T, E, false> {
     E&& error() && { return std::get<1>(std::move(data_)); }
     const E&& error() const&& { return std::get<1>(std::move(data_)); }
 
-    T* operator->() noexcept { return std::get_if<0>(data_); }
-    const T* operator->() const noexcept { return std::get_if<0>(data_); }
+    T* operator->() noexcept { return std::get_if<0>(&data_); }
+    const T* operator->() const noexcept { return std::get_if<0>(&data_); }
 
     T& operator*() & noexcept { return std::get<0>(data_); }
     const T& operator*() const& noexcept { return std::get<0>(data_); }
