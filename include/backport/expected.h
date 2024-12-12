@@ -2,6 +2,7 @@
 
 // C++17 version of C++23 std::expected
 
+#include <functional>
 #include <initializer_list>
 #include <optional>
 #include <type_traits>
